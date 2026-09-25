@@ -1,21 +1,15 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-
-type Mode = "AUTO" | "GPT" | "CLAUDE" | "BOTH";
+import { routeCommand, type ModelMode } from "@/lib/model-router";
 
 type CommandResult = {
   status: string;
-  routing?: {
-    requestedMode: Mode;
-    effectiveMode: Mode;
-    taskClass: string;
-    reason: string;
-  };
-  message?: string;
+  routing: ReturnType<typeof routeCommand>;
+  message: string;
 };
 
-const MODES: Mode[] = ["AUTO", "GPT", "CLAUDE", "BOTH"];
+const MODES: ModelMode[] = ["AUTO", "GPT", "CLAUDE", "BOTH"];
 
 const panels = [
   ["Strategic priority", "Mentorship + Australian education", "Business OS"],
@@ -25,36 +19,22 @@ const panels = [
 ];
 
 export function CommandCentre() {
-  const [mode, setMode] = useState<Mode>("AUTO");
+  const [mode, setMode] = useState<ModelMode>("AUTO");
   const [command, setCommand] = useState("");
   const [result, setResult] = useState<CommandResult | null>(null);
-  const [busy, setBusy] = useState(false);
 
-  const canSubmit = useMemo(() => command.trim().length > 2 && !busy, [command, busy]);
+  const canSubmit = useMemo(() => command.trim().length > 2, [command]);
 
-  async function submit(event: FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault();
     if (!canSubmit) return;
 
-    setBusy(true);
-    setResult(null);
-
-    try {
-      const response = await fetch("/api/command", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ command: command.trim(), mode }),
-      });
-
-      setResult((await response.json()) as CommandResult);
-    } catch {
-      setResult({
-        status: "error",
-        message: "The command shell could not reach its server route.",
-      });
-    } finally {
-      setBusy(false);
-    }
+    setResult({
+      status: "routed",
+      routing: routeCommand(command.trim(), mode),
+      message:
+        "Routing policy is live in this foundation shell. Provider execution stays disabled until authenticated persistence, identical evidence packets and audit logging are wired.",
+    });
   }
 
   return (
@@ -122,21 +102,19 @@ export function CommandCentre() {
               disabled={!canSubmit}
               className="shrink-0 bg-[var(--cream)] px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-[var(--ink)] disabled:opacity-40"
             >
-              {busy ? "Routing…" : "Run"}
+              Run
             </button>
           </div>
 
           {result && (
             <div className="mt-5 border-l-4 border-[var(--orange)] bg-[#171717] p-4 text-sm">
               <div className="font-bold uppercase tracking-[0.12em] text-[var(--orange-soft)]">{result.status}</div>
-              {result.routing && (
-                <div className="mt-2 leading-relaxed">
-                  {result.routing.taskClass} → {result.routing.effectiveMode}
-                  <br />
-                  <span className="text-[var(--muted)]">{result.routing.reason}</span>
-                </div>
-              )}
-              {result.message && <div className="mt-2 text-[var(--muted)]">{result.message}</div>}
+              <div className="mt-2 leading-relaxed">
+                {result.routing.taskClass} → {result.routing.effectiveMode}
+                <br />
+                <span className="text-[var(--muted)]">{result.routing.reason}</span>
+              </div>
+              <div className="mt-2 text-[var(--muted)]">{result.message}</div>
             </div>
           )}
         </form>
